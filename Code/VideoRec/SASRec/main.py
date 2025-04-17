@@ -1,3 +1,12 @@
+import debugpy
+try:
+    # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+    debugpy.listen(("localhost", 9505))
+    print("Waiting for debugger attach")
+    debugpy.wait_for_client()
+except Exception as e:
+    pass
+
 from warnings import simplefilter
 from transformers import logging
 logging.set_verbosity_warning()
@@ -11,6 +20,7 @@ import time
 import torch
 import random
 import subprocess
+import wandb
 
 import numpy as np
 import torch.optim as optim
@@ -36,6 +46,7 @@ from utils.load_data import read_texts, read_behaviors_text, read_items, read_be
 from utils.logging_utils import para_and_log, report_time_train, report_time_eval, save_model, setuplogger, get_time
 from utils.dataset import IdDataset, ModalDataset, TextDataset, ImageDataset, VideoDataset, LMDB_Image, LMDB_VIDEO
 from utils.metrics import get_item_text_score, get_item_id_score, get_item_image_score, get_item_video_score, eval_model, get_fusion_score
+from utils.newutils import get_file_name
 # from utils.metrics_dnn import get_item_text_score, get_item_id_score, get_item_image_score, get_item_video_score, eval_model, get_fusion_score
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
@@ -563,6 +574,7 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
 
         Log_file.info('')
         next_set_start_time = report_time_train(batch_index, now_epoch, loss, align/batch_index, uniform/batch_index, next_set_start_time, start_time, Log_file)
+        wandb.log({"Loss/train_loss": loss.data / batch_index}, now_epoch)
         Log_screen.info('{} training: epoch {}/{}'.format(args.label_screen, now_epoch, args.epoch))
 
         if need_break:
@@ -612,6 +624,8 @@ def eval(now_epoch, max_epoch, early_stop_epoch, max_eval_value, early_stop_coun
 
     valid_Hit10, nDCG10 = eval_model(model, user_history, users_eval, item_scoring, batch_size, \
         args, item_num, Log_file, mode, pop_prob_list, local_rank, now_epoch)
+    wandb.log({'valid_Hit10': valid_Hit10}, now_epoch)
+    wandb.log({'nDCG10': nDCG10}, now_epoch)
 
     report_time_eval(eval_start_time, Log_file)
     Log_file.info('')
@@ -685,6 +699,13 @@ def main():
     time_run = '' # avoid redundant log records
     Log_file, Log_screen = setuplogger(dir_label, log_paras, time_run, args.mode, dist.get_rank())
     Log_file.info(args)
+
+    args_dict = vars(args)
+    wandb.init(
+        project='microlens_replay',
+        config=args_dict,
+        name=get_file_name(args_dict)
+    )
 
     if not os.path.exists(model_dir):
         Path(model_dir).mkdir(parents=True, exist_ok=True)

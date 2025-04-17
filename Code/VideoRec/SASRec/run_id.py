@@ -1,12 +1,12 @@
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-root_data_dir = '/home/public/data/scale_datasets/'
-root_model_dir = '/home/public/data/'
+root_data_dir = '/opt/data/private/vllm2rec/data/'
+root_model_dir = '/opt/data/private/vllm2rec/data/'
 
-dataset = 'core_datasets'
-tag = '10wu'
-behaviors = tag + '_ks_pairs.tsv'
+dataset = 'MicroLens'
+tag = ''
+behaviors = tag + 'MicroLens-100k_pairs.tsv'
 text_data = tag + '_ks_title.csv'
 image_data = tag + '_ks_cover.lmdb'
 frame_no = 5
@@ -14,11 +14,11 @@ video_data = tag + '_ks_fi5_fn'+str(frame_no)+'_frames.lmdb'
 max_seq_len_list = [10]
 
 logging_num = 10
-testing_num = 1
-save_step = 1
+testing_num = 10
+save_step = 10
 
 image_resize = 224
-max_video_no = 34321 # 34321 for 10wu
+max_video_no = 19738 # 34321 for 10wu
 
 text_model_load = 'bert-base-uncased' # 'bert-base-cn' 
 image_model_load = 'vit-base-mae' # 'vit-b-32-clip'
@@ -65,9 +65,9 @@ for batch_size in batch_size_list:
                         item_tower, batch_size, embedding_dim, lr,
                         drop_rate, weight_decay, max_seq_len)
 
-                run_py = "CUDA_VISIBLE_DEVICES='6' \
-                        /opt/anaconda3/envs/torch1.8/bin/python -m torch.distributed.launch \
-                        --nproc_per_node 1 --master_port 130 main.py \
+                run_py = "CUDA_VISIBLE_DEVICES='0' \
+                        python -m torch.distributed.run \
+                        --nproc_per_node 1 --master_port 15493 main.py \
                         --root_data_dir {} --root_model_dir {} --dataset {} --behaviors {} --text_data {}  --image_data {} --video_data {}\
                         --mode {} --item_tower {} --load_ckpt_name {} --label_screen {} --logging_num {} --save_step {}\
                         --testing_num {} --weight_decay {} --drop_rate {} --batch_size {} --lr {} --embedding_dim {}\
