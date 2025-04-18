@@ -91,7 +91,7 @@ def report_time_eval(start_time, Log_file):
 
 def save_model(now_epoch, model, model_dir, optimizer, rng_state, cuda_rng_state, Log_file):
     ckpt_path = os.path.join(model_dir, f'epoch-{now_epoch}.pt')
-    torch.save({'model_state_dict': model.module.state_dict(), 
+    torch.save({'model_state_dict': model.state_dict(), 
                 'optimizer': optimizer.state_dict(),  
                 'rng_state': rng_state,   # random seed status of torch
                 'cuda_rng_state': cuda_rng_state}, ckpt_path)  # random seed status of torch.cuda

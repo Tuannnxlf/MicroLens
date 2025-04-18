@@ -135,7 +135,7 @@ def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, arg
         format(max(pop_prob_list), min(pop_prob_list), np.mean(pop_prob_list)))
     Log_file.info('##### user seqs after clearing {}, {}, {}, {}#####'.format(seq_num, len(user_seq_dic), len(users_train), len(users_valid)))
     if args.mode =='train':
-        return item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, pop_prob_list
+        return item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, users_test, users_history_for_test, pop_prob_list
     return item_num, item_id_to_keys, users_train, users_test, users_history_for_test, pop_prob_list
 
 

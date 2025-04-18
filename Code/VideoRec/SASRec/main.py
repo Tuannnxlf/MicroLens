@@ -1,11 +1,11 @@
-import debugpy
-try:
-    # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
-    debugpy.listen(("localhost", 9505))
-    print("Waiting for debugger attach")
-    debugpy.wait_for_client()
-except Exception as e:
-    pass
+# import debugpy
+# try:
+#     # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+#     debugpy.listen(("localhost", 9505))
+#     print("Waiting for debugger attach")
+#     debugpy.wait_for_client()
+# except Exception as e:
+#     pass
 
 from warnings import simplefilter
 from transformers import logging
@@ -270,7 +270,7 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
             before_item_id_to_keys, before_item_name_to_id = read_items(args)
 
         Log_file.info('read behaviors...')
-        item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, pop_prob_list = \
+        item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, users_test, users_history_for_test, pop_prob_list= \
             read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, args)
 
     # ========================================== Building Model ===========================================
@@ -481,11 +481,6 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
         train_dl.sampler.set_epoch(now_epoch)
         loss, batch_index, need_break = 0.0, 1, False
         align, uniform = 0.0, 0.0
-        
-        if not need_break and (now_epoch-1) % 1 == 0 and now_epoch > 1:
-            max_eval_value, max_epoch, early_stop_epoch, early_stop_count, need_break = \
-                eval(now_epoch, max_epoch, early_stop_epoch, max_eval_value, early_stop_count, model, users_history_for_valid, \
-                    users_valid, 64, item_num, args.mode, is_early_stop, local_rank, args, pop_prob_list, Log_file, item_content, item_id_to_keys)
 
         if args.mode == 'test':
             return
@@ -569,13 +564,27 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
                     batch_index * args.batch_size, loss.data / batch_index, loss.data, align / batch_index, uniform / batch_index))
             batch_index += 1
 
-        if dist.get_rank() == 0 and now_epoch % args.save_step == 0:
-            save_model(now_epoch, model, model_dir, optimizer, torch.get_rng_state(), torch.cuda.get_rng_state(), Log_file)   # new
-
         Log_file.info('')
         next_set_start_time = report_time_train(batch_index, now_epoch, loss, align/batch_index, uniform/batch_index, next_set_start_time, start_time, Log_file)
         wandb.log({"Loss/train_loss": loss.data / batch_index}, now_epoch)
         Log_screen.info('{} training: epoch {}/{}'.format(args.label_screen, now_epoch, args.epoch))
+
+        if not need_break and now_epoch % 1 == 0 and now_epoch > 0:
+            valid_Hit10 = \
+                eval(now_epoch, model, users_history_for_valid, \
+                    users_valid, 64, item_num, args.mode, local_rank, args, pop_prob_list, Log_file, item_content, item_id_to_keys)
+            if valid_Hit10 > max_eval_value:
+                max_eval_value = valid_Hit10
+                max_epoch = now_epoch
+                early_stop_count = 0
+                if dist.get_rank() == 0 :
+                    save_model(now_epoch, model, model_dir, optimizer, torch.get_rng_state(), torch.cuda.get_rng_state(), Log_file)   # new
+            else:
+                early_stop_count += 1
+                if early_stop_count > 5:
+                    if is_early_stop:
+                        need_break = True
+                    early_stop_epoch = now_epoch
 
         if need_break:
             break
@@ -590,9 +599,18 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
     Log_file.info('early stop in epoch {}'.format(early_stop_epoch))
     Log_file.info('the End')
     Log_screen.info('{} train end in epoch {}'.format(args.label_screen, early_stop_epoch))
+    
+    # test
+    best_ckpt = os.path.abspath(os.path.join(model_dir, f'epoch-{max_epoch}.pt'))
+    checkpoint = torch.load(best_ckpt, map_location=torch.device('cpu'))
+    model.load_state_dict(checkpoint['model_state_dict'])
+    torch.set_rng_state(checkpoint['rng_state'])  # random seed status in loading torch
+    torch.cuda.set_rng_state(checkpoint['cuda_rng_state'])  # random seed status in loading torch.cuda
+    eval(max_epoch, model, users_history_for_test, \
+                    users_test, 64, item_num, 'test', local_rank, args, pop_prob_list, Log_file, item_content, item_id_to_keys)
 
-def eval(now_epoch, max_epoch, early_stop_epoch, max_eval_value, early_stop_count, model, user_history, users_eval, batch_size, item_num,\
-     mode, is_early_stop, local_rank, args, pop_prob_list, Log_file, item_content=None, item_id_to_keys=None):
+def eval(now_epoch, model, user_history, users_eval, batch_size, item_num,\
+     mode, local_rank, args, pop_prob_list, Log_file, item_content=None, item_id_to_keys=None):
 
     eval_start_time = time.time()
     Log_file.info('Validating based on {}'.format(args.item_tower))
@@ -624,25 +642,12 @@ def eval(now_epoch, max_epoch, early_stop_epoch, max_eval_value, early_stop_coun
 
     valid_Hit10, nDCG10 = eval_model(model, user_history, users_eval, item_scoring, batch_size, \
         args, item_num, Log_file, mode, pop_prob_list, local_rank, now_epoch)
-    wandb.log({'valid_Hit10': valid_Hit10}, now_epoch)
-    wandb.log({'nDCG10': nDCG10}, now_epoch)
+    wandb.log({f'{mode}_valid_Hit10': valid_Hit10}, now_epoch)
+    wandb.log({f'{mode}_nDCG10': nDCG10}, now_epoch)
 
     report_time_eval(eval_start_time, Log_file)
     Log_file.info('')
-    need_break = False
-
-    if valid_Hit10 > max_eval_value:
-        max_eval_value = valid_Hit10
-        max_epoch = now_epoch
-        early_stop_count = 0
-    else:
-        early_stop_count += 1
-        if early_stop_count > 5:
-            if is_early_stop:
-                need_break = True
-            early_stop_epoch = now_epoch
-
-    return max_eval_value, max_epoch, early_stop_epoch, early_stop_count, need_break
+    return valid_Hit10
 
 def main():
     args = parse_args()

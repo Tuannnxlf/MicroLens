@@ -40,8 +40,8 @@ weight_decay = 0.1
 drop_rate = 0.1
 batch_size_list = [512]
 
-embedding_dim_list = [1024]
-lr_list = [1e-4]
+embedding_dim_list = [2048]
+lr_list = [1e-5]
 text_fine_tune_lr_list = [1e-4]
 image_fine_tune_lr_list = [1e-4]
 video_fine_tune_lr_list = [1e-4]
