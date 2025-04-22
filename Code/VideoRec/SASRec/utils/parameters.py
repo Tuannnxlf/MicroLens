@@ -6,8 +6,9 @@ root_data_dir = os.path.abspath(os.path.join(BASE_DIR, '..'))
 
 def parse_args():
     parser = argparse.ArgumentParser()
-
-    parser.add_argument('--run_id', type=str, default='add wandb')
+    # ============== new parameter =========
+    parser.add_argument('--run_id', type=str, default='pretrained_embs')
+    parser.add_argument('--pretrained_embs', type=str, default='/opt/data/private/vllm2rec/data/videotensor.pt')
 
     # ============== data_dir ==============
     parser.add_argument('--mode', type=str, default='train', choices=['train', 'test'])

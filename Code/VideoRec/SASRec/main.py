@@ -248,6 +248,11 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
     # ========================================== Loading Data ===========================================
     item_content = None
     item_id_to_keys = None
+    
+    if not args.pretrained_embs == None:
+        pretrained_embs = torch.load(args.pretrained_embs)
+    else:
+        pretrained_embs = None
 
     if 'modal' == args.item_tower or 'text' == args.item_tower:
         Log_file.info('read texts ...')
@@ -270,12 +275,12 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
             before_item_id_to_keys, before_item_name_to_id = read_items(args)
 
         Log_file.info('read behaviors...')
-        item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, users_test, users_history_for_test, pop_prob_list= \
-            read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, args)
+        item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, users_test, users_history_for_test, pop_prob_list, pretrained_embs= \
+            read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, args, pretrained_embs)
 
     # ========================================== Building Model ===========================================
     Log_file.info('build model...')
-    model = Model(args, pop_prob_list, item_num, text_model, image_model, video_model, item_content).to(local_rank)
+    model = Model(args, pop_prob_list, item_num, text_model, image_model, video_model, item_content, pretrained_embs).to(local_rank)
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(local_rank)
 
     if 'epoch' in args.load_ckpt_name:

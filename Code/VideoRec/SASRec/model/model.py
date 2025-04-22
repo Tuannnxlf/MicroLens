@@ -5,18 +5,11 @@ from torch.nn.init import xavier_normal_
 from collections import Counter
 import torch.nn.functional as F
 
-from .text_encoders import TextEmbedding
-from .video_encoders import VideoMaeEncoder, R3D18Encoder, R3D50Encoder, C2D50Encoder
-from .video_encoders import I3D50Encoder, CSN101Encoder, SLOW50Encoder, EX3DSEncoder
-from .video_encoders import EX3DXSEncoder, X3DXSEncoder, X3DSEncoder, X3DMEncoder
-from .video_encoders import X3DLEncoder, MVIT16Encoder, MVIT16X4Encoder, MVIT32X3Encoder
-from .video_encoders import SLOWFAST50Encoder, SLOWFAST16X8101Encoder
-from .image_encoders import VitEncoder, ResnetEncoder, MaeEncoder, SwinEncoder 
-from .fusion_module import SumFusion, ConcatFusion, FiLM, GatedFusion 
 from .user_encoders import User_Encoder_GRU4Rec, User_Encoder_SASRec, User_Encoder_NextItNet
+from .Embedding2 import Embedding2
 
 class Model(torch.nn.Module):
-    def __init__(self, args, pop_prob_list, item_num, bert_model, image_net, video_net, text_content=None):
+    def __init__(self, args, pop_prob_list, item_num, bert_model, image_net, video_net, text_content=None, pretrained_embs=None):
         super(Model, self).__init__()
         self.args = args
         self.max_seq_len = args.max_seq_len
@@ -30,66 +23,52 @@ class Model(torch.nn.Module):
         elif args.model == 'nextitnet':
             self.user_encoder = User_Encoder_NextItNet(args)
 
-        if 'image' == args.item_tower or 'modal' == args.item_tower:
-            if 'resnet' in args.image_model_load:
-                self.image_encoder = ResnetEncoder(image_net=image_net, args=args)
-            elif 'vit-b-32-clip' in args.image_model_load:
-                self.image_encoder = VitEncoder(image_net=image_net, args=args)
-            elif 'vit-base-mae' in args.image_model_load:
-                self.image_encoder = MaeEncoder(image_net=image_net, args=args)
-            elif 'swin_tiny' in args.image_model_load or 'swin_base' in args.image_model_load:
-                self.image_encoder = SwinEncoder(image_net=image_net, args=args)
-
-        if 'text' == args.item_tower or 'modal' == args.item_tower:
-            self.text_content = torch.LongTensor(text_content)
-            self.text_encoder = TextEmbedding(args=args, bert_model=bert_model)
-        
-        if 'video' == args.item_tower or 'modal' == args.item_tower:
-            if 'mae' in args.video_model_load:
-                self.video_encoder = VideoMaeEncoder(video_net=video_net, args=args)
-            elif 'r3d18' in args.video_model_load:
-                self.video_encoder = R3D18Encoder(video_net=video_net, args=args)
-            elif 'r3d50' in args.video_model_load:
-                self.video_encoder = R3D50Encoder(video_net=video_net, args=args)
-            elif 'c2d50' in args.video_model_load:
-                self.video_encoder = C2D50Encoder(video_net=video_net, args=args)
-            elif 'i3d50' in args.video_model_load:
-                self.video_encoder = I3D50Encoder(video_net=video_net, args=args)
-            elif 'csn101' in args.video_model_load:
-                self.video_encoder = CSN101Encoder(video_net=video_net, args=args)
-            elif 'slow50' in args.video_model_load:
-                self.video_encoder = SLOW50Encoder(video_net=video_net, args=args)
-            elif 'efficient-x3d-s' in args.video_model_load:
-                self.video_encoder = EX3DSEncoder(video_net=video_net, args=args)
-            elif 'efficient-x3d-xs' in args.video_model_load:
-                self.video_encoder = EX3DXSEncoder(video_net=video_net, args=args)
-            elif 'x3d-xs' in args.video_model_load:
-                self.video_encoder = X3DXSEncoder(video_net=video_net, args=args)
-            elif 'x3d-s' in args.video_model_load:
-                self.video_encoder = X3DSEncoder(video_net=video_net, args=args)
-            elif 'x3d-m' in args.video_model_load:
-                self.video_encoder = X3DMEncoder(video_net=video_net, args=args)
-            elif 'x3d-l' in args.video_model_load:
-                self.video_encoder = X3DLEncoder(video_net=video_net, args=args)
-            elif 'mvit-base-16' in args.video_model_load:
-                self.video_encoder = MVIT16Encoder(video_net=video_net, args=args)
-            elif 'mvit-base-16x4' in args.video_model_load:
-                self.video_encoder = MVIT16X4Encoder(video_net=video_net, args=args)
-            elif 'mvit-base-32x3' in args.video_model_load:
-                self.video_encoder = MVIT32X3Encoder(video_net=video_net, args=args)
-            elif 'slowfast-50' in args.video_model_load:
-                self.video_encoder = SLOWFAST50Encoder(video_net=video_net, args=args)
-            elif 'slowfast16x8-101' in args.video_model_load:
-                self.video_encoder = SLOWFAST16X8101Encoder(video_net=video_net, args=args)
-
-        self.id_encoder = nn.Embedding(item_num + 1, args.embedding_dim, padding_idx=0)
-        xavier_normal_(self.id_encoder.weight.data)
+        self.load_item_embeddings(item_num, args.embedding_dim, pretrained_embs)
 
         self.criterion = nn.CrossEntropyLoss()
 
-        fusion = args.fusion_method.lower()
-        if fusion == 'concat' and args.item_tower == 'modal':
-            self.fusion_module = ConcatFusion(args=args)
+    def load_item_embeddings(self, item_num, embedding_dim, pretrained_embs):
+        if pretrained_embs is None:
+            self.id_encoder = nn.Embedding(
+                num_embeddings=item_num + 1,
+                embedding_dim=embedding_dim,
+                padding_idx=0
+            )
+            xavier_normal_(self.id_encoder.weight.data)
+
+        # use pretrained textual embedding with linear mapping as item embedding
+        else:
+            more_token = 0
+            assert pretrained_embs.shape[0] == item_num + 1
+            self.pretrained_item_embeddings = nn.Embedding.from_pretrained(
+                torch.cat([
+                    pretrained_embs,
+                    torch.randn(more_token, pretrained_embs.shape[-1]).to(pretrained_embs.device)
+                    ]),
+                padding_idx=0
+            )
+            # fix pretrained item embedding
+            self.pretrained_item_embeddings.weight.requires_grad = False
+            self.pretrained_item_embeddings.weight[-more_token:].requires_grad = True
+
+            mlp_dims = [self.pretrained_item_embeddings.embedding_dim] + [-1]
+            mlp_dims[-1] = embedding_dim
+
+            # create mlp with linears and activations
+            self.item_embeddings_adapter = nn.Sequential()
+            self.item_embeddings_adapter.add_module('linear_0', nn.Linear(mlp_dims[0], mlp_dims[1]))
+            for i in range(1, len(mlp_dims) - 1):
+                self.item_embeddings_adapter.add_module(f'activation_{i}', nn.ReLU())
+                self.item_embeddings_adapter.add_module(f'linear_{i}', nn.Linear(mlp_dims[i], mlp_dims[i + 1]))
+
+            # initialize the adapter
+            for name, param in self.item_embeddings_adapter.named_parameters():
+                if 'weight' in name:
+                    nn.init.xavier_normal_(param)
+                elif 'bias' in name:
+                    nn.init.constant_(param, 0)
+            
+            self.id_encoder = Embedding2(self.item_embeddings_adapter, self.pretrained_item_embeddings)
 
     def alignment(self, x, y):
         x, y = F.normalize(x, dim=-1), F.normalize(y, dim=-1)

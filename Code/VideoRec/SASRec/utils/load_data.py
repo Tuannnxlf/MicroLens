@@ -51,7 +51,7 @@ def read_videos(min_video_no, max_video_no):
         item_id_to_keys[item_id] = image_name
     return item_id_to_keys, item_name_to_id
 
-def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, args):
+def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, args, pretrained_embs):
     behaviors_path = os.path.join(args.root_data_dir, args.dataset, args.behaviors)
     max_seq_len, min_seq_len = args.max_seq_len, args.min_seq_len
 
@@ -134,8 +134,16 @@ def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, arg
     Log_file.info('prob max: {}, prob min: {}, prob mean: {}'.\
         format(max(pop_prob_list), min(pop_prob_list), np.mean(pop_prob_list)))
     Log_file.info('##### user seqs after clearing {}, {}, {}, {}#####'.format(seq_num, len(user_seq_dic), len(users_train), len(users_valid)))
+
+    # embedding 过滤
+    new_embedding = torch.zeros((item_num + 1, pretrained_embs.size(1)), dtype=pretrained_embs.dtype)
+    new_embedding[0] = pretrained_embs[0]
+    for before_item_id, now_item_id in item_id_before_to_now.items():
+        new_embedding[now_item_id] = pretrained_embs[before_item_id]
+    pretrained_embs = new_embedding  # 替换为过滤后的embedding
+
     if args.mode =='train':
-        return item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, users_test, users_history_for_test, pop_prob_list
+        return item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, users_test, users_history_for_test, pop_prob_list, pretrained_embs
     return item_num, item_id_to_keys, users_train, users_test, users_history_for_test, pop_prob_list
 
 
