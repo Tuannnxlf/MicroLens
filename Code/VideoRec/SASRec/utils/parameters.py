@@ -7,7 +7,7 @@ root_data_dir = os.path.abspath(os.path.join(BASE_DIR, '..'))
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--run_id', type=str, default='add wandb')
+    parser.add_argument('--run_id', type=str, default='replay_200')
 
     # ============== data_dir ==============
     parser.add_argument('--mode', type=str, default='train', choices=['train', 'test'])

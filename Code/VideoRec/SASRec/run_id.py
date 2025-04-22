@@ -32,7 +32,7 @@ video_freeze_paras_before = 152
 mode = 'train' # train test
 item_tower = 'id' # modal, text, image, video, id
 
-epoch = 50
+epoch = 200
 load_ckpt_name = 'None'
 # load_ckpt_name = 'epoch-200.pt'
 
@@ -50,7 +50,7 @@ index_list = [0]
 scheduler = 'step_schedule_with_warmup'
 scheduler_gap = 1
 scheduler_alpha = 1
-version = 'v1'
+version = 'replay_200'
 
 for batch_size in batch_size_list:
     for embedding_dim in embedding_dim_list:
@@ -65,7 +65,7 @@ for batch_size in batch_size_list:
                         item_tower, batch_size, embedding_dim, lr,
                         drop_rate, weight_decay, max_seq_len)
 
-                run_py = "CUDA_VISIBLE_DEVICES='0' \
+                run_py = "CUDA_VISIBLE_DEVICES='1' \
                         python -m torch.distributed.run \
                         --nproc_per_node 1 --master_port 15493 main.py \
                         --root_data_dir {} --root_model_dir {} --dataset {} --behaviors {} --text_data {}  --image_data {} --video_data {}\
