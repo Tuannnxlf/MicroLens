@@ -128,7 +128,7 @@ class Model(torch.nn.Module):
         # logits = torch.matmul(F.normalize(prec_vec, dim=-1), F.normalize(score_embs, dim=-1).t()) # (bs * max_seq_len, bs * (max_seq_len + 1))
         # logits = logits / self.args.tau - debias_logits
         logits = torch.matmul(prec_vec, score_embs.t())
-        logits = logits - debias_logits
+        # logits = logits - debias_logits
 
         ###################################### MASK USELESS ITEM ######################################
         bs, seq_len = log_mask.size(0), log_mask.size(1)

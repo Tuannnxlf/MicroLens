@@ -50,7 +50,7 @@ index_list = [0]
 scheduler = 'step_schedule_with_warmup'
 scheduler_gap = 1
 scheduler_alpha = 1
-version = 'replay_200'
+version = 'replay_200_without_debias'
 
 for batch_size in batch_size_list:
     for embedding_dim in embedding_dim_list:
