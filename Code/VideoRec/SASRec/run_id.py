@@ -40,7 +40,7 @@ weight_decay = 0.1
 drop_rate = 0.1
 batch_size_list = [512]
 
-embedding_dim_list = [2048]
+embedding_dim_list = [4096]
 lr_list = [1e-5]
 text_fine_tune_lr_list = [1e-4]
 image_fine_tune_lr_list = [1e-4]
@@ -50,7 +50,7 @@ index_list = [0]
 scheduler = 'step_schedule_with_warmup'
 scheduler_gap = 1
 scheduler_alpha = 1
-version = 'pretrained_embs_requires_grad_false'
+version = 'pretrained_embs_requires_grad'
 
 for batch_size in batch_size_list:
     for embedding_dim in embedding_dim_list:

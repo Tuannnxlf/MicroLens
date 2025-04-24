@@ -40,35 +40,34 @@ class Model(torch.nn.Module):
         else:
             more_token = 0
             assert pretrained_embs.shape[0] == item_num + 1
-            self.pretrained_item_embeddings = nn.Embedding.from_pretrained(
+            self.id_encoder = nn.Embedding.from_pretrained(
                 torch.cat([
                     pretrained_embs,
                     torch.randn(more_token, pretrained_embs.shape[-1]).to(pretrained_embs.device)
                     ]),
                 padding_idx=0
             )
-            # fix pretrained item embedding
-            self.pretrained_item_embeddings.weight.requires_grad = False
-            self.pretrained_item_embeddings.weight[-more_token:].requires_grad = True
+            # # fix pretrained item embedding
+            # self.pretrained_item_embeddings.weight.requires_grad = True
 
-            mlp_dims = [self.pretrained_item_embeddings.embedding_dim] + [-1]
-            mlp_dims[-1] = embedding_dim
+            # mlp_dims = [self.pretrained_item_embeddings.embedding_dim] + [-1]
+            # mlp_dims[-1] = embedding_dim
 
-            # create mlp with linears and activations
-            self.item_embeddings_adapter = nn.Sequential()
-            self.item_embeddings_adapter.add_module('linear_0', nn.Linear(mlp_dims[0], mlp_dims[1]))
-            for i in range(1, len(mlp_dims) - 1):
-                self.item_embeddings_adapter.add_module(f'activation_{i}', nn.ReLU())
-                self.item_embeddings_adapter.add_module(f'linear_{i}', nn.Linear(mlp_dims[i], mlp_dims[i + 1]))
+            # # create mlp with linears and activations
+            # self.item_embeddings_adapter = nn.Sequential()
+            # self.item_embeddings_adapter.add_module('linear_0', nn.Linear(mlp_dims[0], mlp_dims[1]))
+            # for i in range(1, len(mlp_dims) - 1):
+            #     self.item_embeddings_adapter.add_module(f'activation_{i}', nn.ReLU())
+            #     self.item_embeddings_adapter.add_module(f'linear_{i}', nn.Linear(mlp_dims[i], mlp_dims[i + 1]))
 
-            # initialize the adapter
-            for name, param in self.item_embeddings_adapter.named_parameters():
-                if 'weight' in name:
-                    nn.init.xavier_normal_(param)
-                elif 'bias' in name:
-                    nn.init.constant_(param, 0)
+            # # initialize the adapter
+            # for name, param in self.item_embeddings_adapter.named_parameters():
+            #     if 'weight' in name:
+            #         nn.init.xavier_normal_(param)
+            #     elif 'bias' in name:
+            #         nn.init.constant_(param, 0)
             
-            self.id_encoder = Embedding2(self.item_embeddings_adapter, self.pretrained_item_embeddings)
+            # self.id_encoder = Embedding2(self.item_embeddings_adapter, self.pretrained_item_embeddings)
 
     def alignment(self, x, y):
         x, y = F.normalize(x, dim=-1), F.normalize(y, dim=-1)
