@@ -48,7 +48,7 @@ class Model(torch.nn.Module):
                 padding_idx=0
             )
             # # fix pretrained item embedding
-            # self.pretrained_item_embeddings.weight.requires_grad = True
+            self.id_encoder.weight.requires_grad = True
 
             # mlp_dims = [self.pretrained_item_embeddings.embedding_dim] + [-1]
             # mlp_dims[-1] = embedding_dim
