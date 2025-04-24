@@ -57,7 +57,7 @@ def get_item_id_score(model, item_num, test_batch_size, args, local_rank):
     with torch.no_grad():
         for input_ids in item_dataloader:
             input_ids = input_ids.to(local_rank)
-            item_emb = model.module.id_encoder(input_ids).to(torch.device('cpu')).detach()
+            item_emb = model.module.id_pretrained_fusion(input_ids).to(torch.device('cpu')).detach()
             item_scoring.extend(item_emb)
     return torch.stack(tensors=item_scoring, dim=0)
 
@@ -151,7 +151,7 @@ def eval_model(model, user_history, eval_seq, item_scoring, test_batch_size, arg
                 score = score[1:]
                 rank, res = metrics_topK(score, label, item_rank, topK, local_rank)
                 rank_list.append(rank.detach().cpu())
-                user_list.append(user_id)   
+                user_list.append(user_id)
                 item_list.append(pop_prob_list[eval_seq[user_id][-1]])
                 eval_all_user.append(res)
         eval_all_user = torch.stack(tensors=eval_all_user, dim=0).t().contiguous()
