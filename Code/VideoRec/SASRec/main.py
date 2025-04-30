@@ -548,10 +548,24 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
 
             # Mixed accuracy (acceleration)
             with autocast(enabled=True):
-                bz_loss, bz_align, bz_uniform = model(sample_items_id, sample_items_text, sample_items_image, sample_items_video, log_mask, local_rank, args)
+                bz_loss, bz_align, bz_uniform, gate = model(sample_items_id, sample_items_text, sample_items_image, sample_items_video, log_mask, local_rank, args)
                 loss += bz_loss.data.float()
                 align += bz_align.data.float()
                 uniform += bz_uniform.data.float()
+
+            sample_items_id_dir = "/opt/data/private/vllm2rec/MicroLens/Code/VideoRec/SASRec/gate_analysis/sample_items_id"
+            gate_dir = "/opt/data/private/vllm2rec/MicroLens/Code/VideoRec/SASRec/gate_analysis/gate"
+
+            # 创建目录（exist_ok=True避免目录已存在的错误）
+            os.makedirs(sample_items_id_dir, exist_ok=True)
+            os.makedirs(gate_dir, exist_ok=True)
+
+            # 构建文件路径
+            sample_items_id_path = os.path.join(sample_items_id_dir, f"ep_{now_epoch}_bz_{batch_index}.pt")
+            gate_path = os.path.join(gate_dir, f"ep_{now_epoch}_bz_{batch_index}.pt")
+
+            torch.save(sample_items_id, sample_items_id_path)
+            torch.save(gate, gate_path)
 
             scaler.scale(bz_loss).backward()
             scaler.unscale_(optimizer)

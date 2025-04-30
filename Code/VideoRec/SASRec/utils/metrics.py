@@ -57,7 +57,8 @@ def get_item_id_score(model, item_num, test_batch_size, args, local_rank):
     with torch.no_grad():
         for input_ids in item_dataloader:
             input_ids = input_ids.to(local_rank)
-            item_emb = model.module.id_pretrained_fusion(input_ids).to(torch.device('cpu')).detach()
+            item_emb, _ = model.module.id_pretrained_fusion(input_ids)
+            item_emb = item_emb.to(torch.device('cpu')).detach()
             item_scoring.extend(item_emb)
     return torch.stack(tensors=item_scoring, dim=0)
 

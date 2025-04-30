@@ -67,7 +67,7 @@ class Model(torch.nn.Module):
         fused = torch.cat((id_embs, pretrained_embs), dim=1)
         gate = self.gating(fused)
         score_embs = gate * id_embs + (1 - gate) * pretrained_embs
-        return score_embs
+        return score_embs, gate
 
     def forward(self, sample_items_id, sample_items_text, sample_items_image, sample_items_video, log_mask, local_rank, args):
         self.pop_prob_list = self.pop_prob_list.to(local_rank)
@@ -85,7 +85,7 @@ class Model(torch.nn.Module):
         elif 'video' == args.item_tower:
             score_embs = self.video_encoder(sample_items_video)
         elif 'id' == args.item_tower:
-            score_embs = self.id_pretrained_fusion(sample_items_id)
+            score_embs, gate = self.id_pretrained_fusion(sample_items_id)
 
         input_embs = score_embs.view(-1, self.max_seq_len + 1, self.args.embedding_dim)        
         if self.args.model == 'sasrec':
@@ -124,4 +124,4 @@ class Model(torch.nn.Module):
         align = self.alignment(user, item)
         uniform = (self.uniformity(user) + self.uniformity(item)) / 2
         
-        return loss, align, uniform
+        return loss, align, uniform, gate
