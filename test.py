@@ -1,27 +1,46 @@
 # 0430
-import torch
+import ast
 
-file_path = "/opt/data/private/vllm2rec/MicroLens/Code/VideoRec/SASRec/gate_analysis/gate/ep_1_bz_1.pt"
+with open("item_gate_averages.txt", "r") as f:
+    for line in f:
+        parts = line.strip().split(', ', 2)  # 分割成 [item_id, scalar_avg, gate_vector]
+        item_id = int(parts[0])
+        scalar_avg = float(parts[1])
+        gate_vector = ast.literal_eval(parts[2])  # 字符串转列表
+        
+        # 计算最小值
+        min_gate = min(gate_vector)
+        
+        # 格式化输出
+        print(f"Item ID: {item_id}")
+        print(f"Scalar Avg: {scalar_avg:.4f}")
+        print(f"Gate Vector Min: {min_gate:.6f}")  # 输出最小值
+        print(f"Gate Vector (first 5 dims): {gate_vector[:5]}...")
+        print("-" * 50)  # 分隔线
+# 0430
+# import torch
 
-try:
-    # 加载文件内容
-    data = torch.load(file_path)
-    print("File loaded successfully!")
+# file_path = "/opt/data/private/vllm2rec/MicroLens/Code/VideoRec/SASRec/gate_analysis/gate/ep_1_bz_1.pt"
+
+# try:
+#     # 加载文件内容
+#     data = torch.load(file_path)
+#     print("File loaded successfully!")
     
-    # 打印数据信息
-    print(f"Data type: {type(data)}")
+#     # 打印数据信息
+#     print(f"Data type: {type(data)}")
     
-    if isinstance(data, torch.Tensor):
-        print(f"Tensor shape: {data.shape}")
-        print(f"Tensor dtype: {data.dtype}")
-        print("Tensor values (first few):", data.flatten()[:10])  # 打印前10个值（如果是大张量）
-    else:
-        print("Data content:", data)  # 如果是字典、列表等结构
+#     if isinstance(data, torch.Tensor):
+#         print(f"Tensor shape: {data.shape}")
+#         print(f"Tensor dtype: {data.dtype}")
+#         print("Tensor values (first few):", data.flatten()[:10])  # 打印前10个值（如果是大张量）
+#     else:
+#         print("Data content:", data)  # 如果是字典、列表等结构
     
-except FileNotFoundError:
-    print(f"Error: File not found at {file_path}")
-except Exception as e:
-    print(f"Error loading file: {e}")
+# except FileNotFoundError:
+#     print(f"Error: File not found at {file_path}")
+# except Exception as e:
+#     print(f"Error loading file: {e}")
 # old
 # import torch
 # import random
