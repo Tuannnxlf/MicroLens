@@ -144,7 +144,7 @@ def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, arg
 
     if args.mode =='train':
         return item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, users_test, users_history_for_test, pop_prob_list, pretrained_embs
-    return item_num, item_id_to_keys, users_train, users_test, users_history_for_test, pop_prob_list
+    return item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, users_test, users_history_for_test, pop_prob_list, pretrained_embs
 
 
 def read_behaviors_text(item_dic, before_item_name_to_index, before_item_index_to_name, Log_file, args):

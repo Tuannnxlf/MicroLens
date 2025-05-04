@@ -282,6 +282,9 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
     Log_file.info('build model...')
     model = Model(args, pop_prob_list, item_num, text_model, image_model, video_model, item_content, pretrained_embs).to(local_rank)
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(local_rank)
+    Log_file.info('model.cuda()...')
+    model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+    Log_file.info(model)
 
     if 'epoch' in args.load_ckpt_name:
         Log_file.info('load ckpt if not None...')
@@ -308,9 +311,7 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
     # for index, (name, param) in enumerate(model.named_parameters()):
     #     print(index, name, param.shape)
     
-    Log_file.info('model.cuda()...')
-    model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
-    Log_file.info(model)
+    
     # ============================ Dataset and Dataloader ============================
 
     if 'modal' == args.item_tower:
@@ -488,6 +489,20 @@ def train(args, model_dir, Log_file, Log_screen, start_time, local_rank):
         align, uniform = 0.0, 0.0
 
         if args.mode == 'test':
+            # 生成所有 item ID（包括 padding_idx=0）
+            all_item_ids = torch.arange(0, item_num + 1, dtype=torch.long).to(local_rank)
+
+            # 提取所有 embeddings（包括 padding_idx=0）
+            with torch.no_grad():
+                all_embs = model.module.id_encoder(all_item_ids)
+
+            # 检查 padding_idx=0 的 embedding 是否为零向量（根据你的模型定义）
+            print("Padding ID=0 的 embedding:", all_embs[0])  # 应该接近全零（因为 padding_idx=0）
+
+            # 转为 numpy（可选）
+            all_embs_np = all_embs.cpu().numpy()
+            np.save("/opt/data/private/vllm2rec/MicroLens/statistical_analysis/embedding/finetuned_video_embeddings", all_embs_np)
+            print("所有 item 的 finetuned_video_embeddings 形状（含 padding）:", all_embs.shape)  # (item_num + 1, embedding_dim)
             return
         
         Log_file.info('\n')
