@@ -51,12 +51,12 @@ def read_videos(min_video_no, max_video_no):
         item_id_to_keys[item_id] = image_name
     return item_id_to_keys, item_name_to_id
 
-def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, args, pretrained_embs):
+def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, args, pretrained_embs=None):
     behaviors_path = os.path.join(args.root_data_dir, args.dataset, args.behaviors)
     max_seq_len, min_seq_len = args.max_seq_len, args.min_seq_len
 
-    Log_file.info('##### item number {}'.format(len(before_item_id_to_keys)))
-    Log_file.info('##### min seq len {}, max seq len {}#####'.format(min_seq_len, max_seq_len))
+    # Log_file.info('##### item number {}'.format(len(before_item_id_to_keys)))
+    # Log_file.info('##### min seq len {}, max seq len {}#####'.format(min_seq_len, max_seq_len))
 
     before_item_num = len(before_item_name_to_id)
     before_item_counts = [0] * (before_item_num + 1)
@@ -64,7 +64,7 @@ def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, arg
     seq_num = 0
     before_seq_num = 0
     pairs_num = 0
-    Log_file.info('rebuild user seqs...')
+    # Log_file.info('rebuild user seqs...')
     with open(behaviors_path, 'r') as f:
         for line in f:
             before_seq_num += 1
@@ -81,8 +81,8 @@ def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, arg
                 pairs_num += 1
             seq_num += 1
 
-    Log_file.info("##### pairs_num {}".format(pairs_num))
-    Log_file.info('##### user seqs before {}'.format(before_seq_num))
+    # Log_file.info("##### pairs_num {}".format(pairs_num))
+    # Log_file.info('##### user seqs before {}'.format(before_seq_num))
 
     item_id = 1
     item_id_to_keys = {}
@@ -94,20 +94,22 @@ def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, arg
             item_id += 1
 
     item_num = len(item_id_before_to_now)
-    Log_file.info('##### items after clearing {}, {}, {}, {}#####'.format(item_num, item_id - 1, len(item_id_to_keys), len(item_id_before_to_now)))
+    # Log_file.info('##### items after clearing {}, {}, {}, {}#####'.format(item_num, item_id - 1, len(item_id_to_keys), len(item_id_before_to_now)))
     users_train = {}
     users_valid = {}
     users_test = {}
     users_history_for_valid = {}
     users_history_for_test = {}
     user_id = 0
-    
+    new_user_seq_dic = {}
+
     if args.power < 0:
         train_item_counts = [1] * (item_num + 1)
     else:
         train_item_counts = [0] * (item_num + 1)
     for user_name, item_seqs in user_seq_dic.items():
         user_seq = [item_id_before_to_now[i] for i in item_seqs]
+        new_user_seq_dic[user_name] = user_seq
 
         train = user_seq[:-2]
         valid = user_seq[-(max_seq_len+2):-1]
@@ -131,17 +133,19 @@ def read_behaviors(before_item_id_to_keys, before_item_name_to_id, Log_file, arg
     pop_prob_list = pop_prob_list / sum(np.array(pop_prob_list))
     pop_prob_list = np.append([1], pop_prob_list)
     
-    Log_file.info('prob max: {}, prob min: {}, prob mean: {}'.\
-        format(max(pop_prob_list), min(pop_prob_list), np.mean(pop_prob_list)))
-    Log_file.info('##### user seqs after clearing {}, {}, {}, {}#####'.format(seq_num, len(user_seq_dic), len(users_train), len(users_valid)))
+    # Log_file.info('prob max: {}, prob min: {}, prob mean: {}'.\
+    #     format(max(pop_prob_list), min(pop_prob_list), np.mean(pop_prob_list)))
+    # Log_file.info('##### user seqs after clearing {}, {}, {}, {}#####'.format(seq_num, len(user_seq_dic), len(users_train), len(users_valid)))
 
-    # embedding 过滤
-    new_embedding = torch.zeros((item_num + 1, pretrained_embs.size(1)), dtype=pretrained_embs.dtype)
-    new_embedding[0] = pretrained_embs[0]
-    for before_item_id, now_item_id in item_id_before_to_now.items():
-        new_embedding[now_item_id] = pretrained_embs[before_item_id]
-    pretrained_embs = new_embedding  # 替换为过滤后的embedding
-
+    # embedding 过滤\
+    if args.mode == 'train':
+        new_embedding = torch.zeros((item_num + 1, pretrained_embs.size(1)), dtype=pretrained_embs.dtype)
+        new_embedding[0] = pretrained_embs[0]
+        for before_item_id, now_item_id in item_id_before_to_now.items():
+            new_embedding[now_item_id] = pretrained_embs[before_item_id]
+        pretrained_embs = new_embedding  # 替换为过滤后的embedding
+    if args.mode == 'analysis':
+        return item_num, new_user_seq_dic
     if args.mode =='train':
         return item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, users_test, users_history_for_test, pop_prob_list, pretrained_embs
     return item_num, item_id_to_keys, users_train, users_valid, users_history_for_valid, users_test, users_history_for_test, pop_prob_list, pretrained_embs
